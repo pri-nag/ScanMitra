@@ -1,0 +1,133 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  CENTER
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  IN_QUEUE
+  IN_PROGRESS
+  DONE
+  NO_SHOW
+  CANCELLED
+}
+
+model User {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  password       String
+  role           Role
+  createdAt      DateTime  @default(now())
+  patientProfile Patient?
+  centerProfile  Center?
+  bookings       Booking[]
+}
+
+model Patient {
+  id               String    @id @default(cuid())
+  userId           String    @unique
+  user             User      @relation(fields: [userId], references: [id])
+  name             String
+  address          String?
+  city             String?
+  state            String?
+  mobile           String
+  age              Int?
+  sex              String?
+  dob              DateTime?
+  maritalStatus    String?
+  emergencyContact String?
+  medicalHistory   String?
+  bloodGroup       String?
+}
+
+model Center {
+  id                   String       @id @default(cuid())
+  userId               String       @unique
+  user                 User         @relation(fields: [userId], references: [id])
+  centerName           String
+  address              String
+  phone1               String
+  phone2               String?
+  phone3               String?
+  clinicLicenseNo      String?
+  radiologistRegId     String?
+  govHealthReg         String?
+  identityProofUrl     String?
+  availableScans       String[]
+  machineBrand         String?
+  machineModel         String?
+  machineYear          Int?
+  openingTime          String
+  closingTime          String
+  dailyPatientCapacity Int?
+  emergencySupport     Boolean      @default(false)
+  services             Service[]
+  bookings             Booking[]
+  queueEntries         QueueEntry[]
+}
+
+model Service {
+  id       String    @id @default(cuid())
+  centerId String
+  center   Center    @relation(fields: [centerId], references: [id])
+  name     String
+  duration Int
+  price    Float
+  status   Boolean   @default(true)
+  bookings Booking[]
+
+  @@index([centerId, status])
+}
+
+model Booking {
+  id             String        @id @default(cuid())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id])
+  centerId       String
+  center         Center        @relation(fields: [centerId], references: [id])
+  serviceId      String
+  service        Service       @relation(fields: [serviceId], references: [id])
+  patientName    String
+  patientPhone   String
+  slotTime       DateTime
+  tokenNumber    Int
+  status         BookingStatus @default(PENDING)
+  additionalInfo String?
+  review         String?
+  queueEntry     QueueEntry?
+  createdAt      DateTime      @default(now())
+
+  @@index([userId, slotTime])
+  @@index([centerId, slotTime])
+  @@index([centerId, status, createdAt])
+  @@index([serviceId])
+}
+
+model QueueEntry {
+  id        String        @id @default(cuid())
+  bookingId String        @unique
+  booking   Booking       @relation(fields: [bookingId], references: [id])
+  centerId  String
+  center    Center        @relation(fields: [centerId], references: [id])
+  queueNo   Int
+  status    BookingStatus
+  delayMins Int           @default(0)
+  isWalkIn  Boolean       @default(false)
+  calledAt  DateTime?
+  doneAt    DateTime?
+  createdAt DateTime      @default(now())
+
+  @@index([centerId, status, queueNo])
+  @@index([centerId, createdAt])
+}
