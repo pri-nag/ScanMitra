@@ -1,6 +1,10 @@
 import { createServer } from "http";
 import next from "next";
+import { loadEnvConfig } from "@next/env";
 import { initSocketServer } from "@/lib/socket-server";
+
+// Ensure custom server startup loads .env.local/.env the same way Next CLI does.
+loadEnvConfig(process.cwd());
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = "localhost";
