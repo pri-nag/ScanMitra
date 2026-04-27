@@ -47,7 +47,6 @@ export default function QueueStatusPage() {
   const { id } = useParams<{ id: string }>();
   const [data, setData] = useState<QueueStatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [delayMessage, setDelayMessage] = useState("");
   const [socketConnected, setSocketConnected] = useState(false);
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [showDelayBanner, setShowDelayBanner] = useState(false);

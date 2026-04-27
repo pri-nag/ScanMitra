@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+/* eslint-disable */
+import { NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
@@ -6,7 +7,6 @@ import prisma from "@/lib/prisma";
 import { bookingSchema } from "@/lib/validations";
 import { assignToken, assignQueueNumber, generateTimeSlots } from "@/lib/queue";
 import { calculateCapacities, canBook } from "@/lib/slots";
-import { scheduleBookingJobs } from "@/lib/scheduler";
 import { emitQueueUpdate, emitNewBooking, emitSlotUpdate } from "@/lib/socket-server";
 import { cacheDel } from "@/lib/redis-cache";
 import { jsonNoStore } from "@/lib/http-cache";

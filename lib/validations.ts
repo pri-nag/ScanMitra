@@ -148,6 +148,7 @@ export const bookingSchema = z.object({
   patientPhone: phoneSchema,
   slotTime: z.string().min(1, "Select a time slot"),
   additionalInfo: z.string().optional(),
+  bookingType: z.enum(["ONLINE", "WALK_IN"]).default("ONLINE"),
 });
 
 // ===== SERVICE SCHEMA =====

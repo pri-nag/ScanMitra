@@ -158,6 +158,7 @@ const VALID_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
   DONE: [],
   NO_SHOW: [],
   CANCELLED: [],
+  MISSED: [],
 };
 
 export function isValidTransition(

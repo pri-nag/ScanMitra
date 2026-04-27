@@ -2,11 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import dynamic from "next/dynamic";
 import Navbar from "@/components/shared/Navbar";
 import {
-  Plus, Pencil, Trash2, Stethoscope, Clock,
-  IndianRupee, Loader2, X, Save, ToggleLeft, ToggleRight
+  Plus, Loader2, X, Save, ToggleLeft, ToggleRight
 } from "lucide-react";
 import axios from "axios";
 import toast from "react-hot-toast";

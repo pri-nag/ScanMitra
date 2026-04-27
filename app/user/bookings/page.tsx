@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Navbar from "@/components/shared/Navbar";
 import Link from "next/link";
 import {
-  Calendar, Building2, Stethoscope, Hash,
+  Building2, Stethoscope, Hash,
   Loader2, CalendarX, Eye, Wifi, WifiOff
 } from "lucide-react";
 import { getSocketClient } from "@/lib/socket-client";

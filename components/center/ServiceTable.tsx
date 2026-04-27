@@ -8,6 +8,7 @@ interface Service {
   duration: number;
   price: number;
   status: boolean;
+  totalSlots: number;
 }
 
 interface ServiceTableProps {
@@ -73,6 +74,9 @@ export default function ServiceTable({
             </span>
             <span className="flex items-center gap-1 font-semibold text-primary">
               <IndianRupee className="w-3.5 h-3.5" /> {service.price.toLocaleString()}
+            </span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-secondary text-muted-foreground border border-border">
+              {service.totalSlots || 10} Slots
             </span>
           </div>
 

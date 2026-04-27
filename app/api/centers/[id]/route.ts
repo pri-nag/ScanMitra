@@ -33,7 +33,7 @@ export async function GET(
         emergencySupport: true,
         services: {
           where: { status: true },
-          select: { id: true, name: true, duration: true, price: true, status: true },
+          select: { id: true, name: true, duration: true, price: true, status: true, totalSlots: true },
         },
         _count: { select: { bookings: true, queueEntries: true } },
       },
