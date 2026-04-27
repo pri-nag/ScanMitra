@@ -1,5 +1,5 @@
 /* eslint-disable */
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
@@ -10,6 +10,7 @@ import { calculateCapacities, canBook } from "@/lib/slots";
 import { emitQueueUpdate, emitNewBooking, emitSlotUpdate } from "@/lib/socket-server";
 import { cacheDel } from "@/lib/redis-cache";
 import { jsonNoStore } from "@/lib/http-cache";
+import { scheduleBookingJobs } from "@/lib/scheduler";
 
 export const dynamic = "force-dynamic";
 
