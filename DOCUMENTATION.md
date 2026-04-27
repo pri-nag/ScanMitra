@@ -1,5 +1,7 @@
 # 📖 ScanMitra Technical Documentation
 
+**Live Demo**: [scanmitra.onrender.com](https://scanmitra.onrender.com/)
+
 This document provides an in-depth look into the architecture, logic, and internal workflows of the ScanMitra platform.
 
 ---

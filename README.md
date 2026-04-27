@@ -1,5 +1,7 @@
 # 🩺 ScanMitra: Smart Diagnostic Queue Management
 
+**Live Demo**: [scanmitra.onrender.com](https://scanmitra.onrender.com/)
+
 **ScanMitra** is a state-of-the-art, full-stack diagnostic booking and real-time queue management platform. It bridge the gap between patients and diagnostic centers, providing transparency, reducing wait times, and automating complex hospital-grade workflows.
 
 ---
@@ -79,12 +81,15 @@ npm run dev
 
 ## 📦 Deployment
 
-### Recommended: Railway.app / Zeabur
+### Recommended: Render.com / Railway.app
 ScanMitra requires a **persistent Node.js process** for Socket.io to function correctly. Standard serverless platforms (like Vercel) are not recommended.
 
-1. Connect your GitHub repo to Railway.
-2. Ensure the `start` script is set to: `NODE_ENV=production tsx server.ts`.
-3. Add your environment variables in the Railway dashboard.
+**Deployed on Render**: [https://scanmitra.onrender.com/](https://scanmitra.onrender.com/)
+
+1. Connect your GitHub repo to Render/Railway.
+2. Ensure the build command is: `npm install && npx prisma generate && npm run build`.
+3. Ensure the start command is: `node dist/server.js` or `tsx server.ts`.
+4. Add your environment variables in the dashboard.
 
 ---
 
