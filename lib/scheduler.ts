@@ -1,11 +1,13 @@
 import prisma from "@/lib/prisma";
 import {
   createWorker,
+  missedSlotQueue,
   noShowQueue,
   reminderQueue,
   scheduleJob,
   slotTimeQueue,
 } from "@/lib/bullmq";
+import { emitSlotMissed } from "./socket-server";
 
 const MINUTE = 60 * 1000;
 
@@ -36,6 +38,20 @@ createWorker("noShowQueue", async (job) => {
   }
 });
 
+createWorker("missedSlotQueue", async (job) => {
+  const { bookingId } = job.data as { bookingId: string };
+  const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+
+  // If patient never checked in (still PENDING or CONFIRMED) after 30 mins
+  if (booking?.status === "PENDING" || booking?.status === "CONFIRMED") {
+    await prisma.booking.update({
+      where: { id: bookingId },
+      data: { status: "MISSED" },
+    });
+    emitSlotMissed(booking.userId, bookingId);
+  }
+});
+
 export async function scheduleBookingJobs(bookingId: string, slotTime: Date) {
   const now = Date.now();
   const slotAt = new Date(slotTime).getTime();
@@ -50,6 +66,10 @@ export async function scheduleBookingJobs(bookingId: string, slotTime: Date) {
       priority: 2,
     }),
     scheduleJob(noShowQueue, "booking_noshow", { bookingId }, {
+      delay: Math.max(slotAt - now + 30 * MINUTE, 0),
+      priority: 1,
+    }),
+    scheduleJob(missedSlotQueue, "booking_missed", { bookingId }, {
       delay: Math.max(slotAt - now + 30 * MINUTE, 0),
       priority: 1,
     }),

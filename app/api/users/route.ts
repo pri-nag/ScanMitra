@@ -5,6 +5,8 @@ import prisma from "@/lib/prisma";
 import { patientProfileSchema } from "@/lib/validations";
 import { jsonNoStore } from "@/lib/http-cache";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/users - Get patient profile
 export async function GET() {
   try {
@@ -30,6 +32,7 @@ export async function GET() {
         emergencyContact: true,
         medicalHistory: true,
         bloodGroup: true,
+        avatarUrl: true,
       },
     });
 

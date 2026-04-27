@@ -22,8 +22,10 @@ export async function GET(
       prisma.queueEntry.findMany({
         where: {
           centerId: params.centerId,
-          createdAt: { gte: today, lt: tomorrow },
-          status: { notIn: ["CANCELLED", "DONE", "NO_SHOW"] },
+          booking: {
+            slotTime: { gte: today, lt: tomorrow },
+          },
+          status: { notIn: ["CANCELLED", "DONE", "NO_SHOW", "MISSED"] },
         },
         select: {
           id: true,
@@ -51,7 +53,9 @@ export async function GET(
       prisma.queueEntry.count({
         where: {
           centerId: params.centerId,
-          createdAt: { gte: today, lt: tomorrow },
+          booking: {
+            slotTime: { gte: today, lt: tomorrow },
+          },
           status: "DONE",
         },
       }),

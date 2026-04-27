@@ -6,6 +6,8 @@ import { serviceSchema } from "@/lib/validations";
 import { cacheDel } from "@/lib/redis-cache";
 import { jsonNoStore } from "@/lib/http-cache";
 
+export const dynamic = "force-dynamic";
+
 // POST /api/services - Add a new service
 export async function POST(req: NextRequest) {
   try {
@@ -68,7 +70,7 @@ export async function GET() {
 
     const services = await prisma.service.findMany({
       where: { centerId: center.id },
-      select: { id: true, name: true, duration: true, price: true, status: true, centerId: true },
+      select: { id: true, name: true, duration: true, price: true, status: true, totalSlots: true, centerId: true },
       orderBy: { name: "asc" },
       skip: 0,
       take: pageSize,

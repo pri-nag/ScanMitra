@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { generateTimeSlots } from "@/lib/queue";
+import { calculateCapacities, getSlotStatus } from "@/lib/slots";
 import { cacheGet, cacheSet } from "@/lib/redis-cache";
 import { jsonNoStore, jsonPublicCache } from "@/lib/http-cache";
 
@@ -68,23 +69,40 @@ export async function GET(
           slotTime: { gte: dayStart, lte: dayEnd },
           status: { notIn: ["CANCELLED"] },
         },
-        select: { slotTime: true },
+        select: { slotTime: true, bookingType: true },
       });
 
-      const capacity = center.dailyPatientCapacity || 50;
-      const bookingsPerSlot = new Map<string, number>();
+      const onlineBookingsPerSlot = new Map<string, number>();
+      const walkInBookingsPerSlot = new Map<string, number>();
 
       existingBookings.forEach((b) => {
         const slotKey = `${b.slotTime.getHours().toString().padStart(2, "0")}:${b.slotTime.getMinutes().toString().padStart(2, "0")}`;
-        bookingsPerSlot.set(slotKey, (bookingsPerSlot.get(slotKey) || 0) + 1);
+        if (b.bookingType === "ONLINE") {
+          onlineBookingsPerSlot.set(slotKey, (onlineBookingsPerSlot.get(slotKey) || 0) + 1);
+        } else {
+          walkInBookingsPerSlot.set(slotKey, (walkInBookingsPerSlot.get(slotKey) || 0) + 1);
+        }
       });
 
-      const maxPerSlot = Math.max(1, Math.floor(capacity / allSlots.length));
+      const totalPerSlot = Math.max(1, Math.floor((selectedService.totalSlots || 10) / 1)); // Assuming totalSlots is per time slot for simplicity, or we can distribute it.
+      // Re-reading requirements: "10 slots per day" -> let's divide it across slots.
+      const avgCapacityPerSlot = Math.max(1, Math.floor((selectedService.totalSlots || 10) / allSlots.length));
+      
+      const { onlineCapacity, walkInCapacity } = calculateCapacities(avgCapacityPerSlot);
 
-      slots = allSlots.map((time) => ({
-        time,
-        available: (bookingsPerSlot.get(time) || 0) < maxPerSlot,
-      }));
+      slots = allSlots.map((time) => {
+        const online = onlineBookingsPerSlot.get(time) || 0;
+        const walkin = walkInBookingsPerSlot.get(time) || 0;
+        return {
+          time,
+          onlineBooked: online,
+          walkInBooked: walkin,
+          onlineCapacity,
+          walkInCapacity,
+          status: getSlotStatus(online, walkin, onlineCapacity, walkInCapacity),
+          available: getSlotStatus(online, walkin, onlineCapacity, walkInCapacity) === "available"
+        };
+      });
     }
 
     const payload = { center, slots };

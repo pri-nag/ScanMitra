@@ -108,6 +108,7 @@ export const patientProfileSchema = z.object({
   emergencyContact: optionalPhoneSchema,
   medicalHistory: optionalStringSchema,
   bloodGroup: optionalStringSchema,
+  avatarUrl: optionalStringSchema,
 });
 
 // ===== CENTER PROFILE SCHEMA =====
@@ -135,6 +136,7 @@ export const centerProfileSchema = z.object({
   closingTime: timeSchema,
   dailyPatientCapacity: z.number().min(1).optional().nullable(),
   emergencySupport: z.boolean().default(false),
+  logoUrl: optionalStringSchema,
 });
 
 // ===== BOOKING SCHEMA =====
@@ -155,6 +157,7 @@ export const serviceSchema = z.object({
   duration: z.number().min(1, "Duration must be at least 1 minute"),
   price: z.number().min(0, "Price must be positive"),
   status: z.boolean().default(true),
+  totalSlots: z.number().min(1, "At least 1 slot is required").default(10),
 });
 
 // ===== WALK-IN SCHEMA =====

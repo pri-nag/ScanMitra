@@ -4,11 +4,14 @@ import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { bookingSchema } from "@/lib/validations";
-import { assignToken, assignQueueNumber } from "@/lib/queue";
+import { assignToken, assignQueueNumber, generateTimeSlots } from "@/lib/queue";
+import { calculateCapacities, canBook } from "@/lib/slots";
 import { scheduleBookingJobs } from "@/lib/scheduler";
-import { emitQueueUpdate } from "@/lib/socket-server";
+import { emitQueueUpdate, emitNewBooking, emitSlotUpdate } from "@/lib/socket-server";
 import { cacheDel } from "@/lib/redis-cache";
 import { jsonNoStore } from "@/lib/http-cache";
+
+export const dynamic = "force-dynamic";
 
 // POST /api/bookings - Create a new booking
 export async function POST(req: NextRequest) {
@@ -28,61 +31,91 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { centerId, serviceId, patientName, patientPhone, slotTime, additionalInfo } =
+    const { centerId, serviceId, patientName, patientPhone, slotTime, additionalInfo, bookingType = "ONLINE" } =
       validation.data;
 
-    // Verify center and service exist
-    const center = await prisma.center.findUnique({
-      where: { id: centerId },
-      select: { id: true, services: { select: { id: true } } },
+    // Use a transaction to ensure atomicity and prevent race conditions
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Get Service and Center details
+      const service = await tx.service.findUnique({
+        where: { id: serviceId },
+        include: { center: true }
+      });
+
+      if (!service || service.centerId !== centerId) {
+        throw new Error("Service not found or mismatch");
+      }
+
+      // 2. Count existing bookings for this specific slot time
+      const targetTime = new Date(slotTime);
+      const bookingsInSlot = await tx.booking.findMany({
+        where: {
+          serviceId,
+          slotTime: targetTime,
+          status: { notIn: ["CANCELLED"] }
+        },
+        select: { bookingType: true }
+      });
+
+      const onlineBooked = bookingsInSlot.filter(b => b.bookingType === "ONLINE").length;
+      const walkInBooked = bookingsInSlot.filter(b => b.bookingType === "WALK_IN").length;
+
+      // 3. Calculate capacities (split across time slots)
+      const allSlotsCount = generateTimeSlots(service.center.openingTime, service.center.closingTime, service.duration).length;
+      const avgCapacityPerSlot = Math.max(1, Math.floor((service.totalSlots || 10) / allSlotsCount));
+      const { onlineCapacity, walkInCapacity } = calculateCapacities(avgCapacityPerSlot);
+
+      // 4. Validate capacity
+      const validation = canBook(bookingType as any, onlineBooked, walkInBooked, onlineCapacity, walkInCapacity);
+      if (!validation.allowed) {
+        throw new Error(validation.error);
+      }
+
+      // 5. Assign token and create booking
+      const tokenNumber = await assignToken(centerId); // Note: this uses prisma outside tx, ideally move logic inside
+      const queueNo = await assignQueueNumber(centerId);
+
+      const booking = await tx.booking.create({
+        data: {
+          userId: session.user.id,
+          centerId,
+          serviceId,
+          patientName,
+          patientPhone,
+          slotTime: targetTime,
+          tokenNumber,
+          status: "PENDING",
+          bookingType: bookingType as any,
+          additionalInfo,
+        },
+        select: {
+          id: true,
+          centerId: true,
+          serviceId: true,
+          patientName: true,
+          patientPhone: true,
+          slotTime: true,
+          tokenNumber: true,
+          status: true,
+          bookingType: true,
+          center: { select: { id: true, centerName: true, address: true } },
+          service: { select: { id: true, name: true, duration: true, price: true } },
+        },
+      });
+
+      await tx.queueEntry.create({
+        data: {
+          bookingId: booking.id,
+          centerId,
+          queueNo,
+          status: "PENDING",
+        },
+      });
+
+      return { booking, tokenNumber, queueNo, warning: validation.warning };
     });
 
-    if (!center) {
-      return jsonNoStore({ error: "Center not found" }, 404);
-    }
-
-    const service = center.services.find((s) => s.id === serviceId);
-    if (!service) {
-      return jsonNoStore({ error: "Service not found" }, 404);
-    }
-
-    // Assign token number
-    const tokenNumber = await assignToken(centerId);
-    const queueNo = await assignQueueNumber(centerId);
-    const booking = await prisma.booking.create({
-      data: {
-        userId: session.user.id,
-        centerId,
-        serviceId,
-        patientName,
-        patientPhone,
-        slotTime: new Date(slotTime),
-        tokenNumber,
-        status: "PENDING",
-        additionalInfo,
-      },
-      select: {
-        id: true,
-        centerId: true,
-        serviceId: true,
-        patientName: true,
-        patientPhone: true,
-        slotTime: true,
-        tokenNumber: true,
-        status: true,
-        center: { select: { id: true, centerName: true, address: true } },
-        service: { select: { id: true, name: true, duration: true, price: true } },
-      },
-    });
-
-    await prisma.queueEntry.create({
-      data: {
-        bookingId: booking.id,
-        centerId,
-        queueNo,
-        status: "PENDING",
-      },
-    });
+    const { booking, tokenNumber, queueNo, warning } = result;
 
     await scheduleBookingJobs(booking.id, booking.slotTime);
     emitQueueUpdate(centerId, {
@@ -91,6 +124,13 @@ export async function POST(req: NextRequest) {
       queueNo,
       eta: null,
     });
+    emitNewBooking(centerId, {
+      bookingId: booking.id,
+      patientName: booking.patientName,
+      tokenNumber: booking.tokenNumber,
+      slotTime: booking.slotTime,
+    });
+    emitSlotUpdate(centerId, { slotTime: booking.slotTime });
 
     const slotDate = new Date(slotTime).toISOString().split("T")[0];
     await cacheDel([

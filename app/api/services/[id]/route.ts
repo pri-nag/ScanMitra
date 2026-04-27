@@ -30,7 +30,7 @@ export async function PUT(
     const service = await prisma.service.update({
       where: { id: params.id },
       data: validation.data,
-      select: { id: true, centerId: true, name: true, duration: true, price: true, status: true },
+      select: { id: true, centerId: true, name: true, duration: true, price: true, status: true, totalSlots: true },
     });
 
     await cacheDel(["centers:list:::1:12", `centers:detail:${service.centerId}:today:first`]);

@@ -1,110 +1,97 @@
-# ScanMitra
+# 🩺 ScanMitra: Smart Diagnostic Queue Management
 
-ScanMitra is a full-stack diagnostic booking and queue management platform built with Next.js 14.
-It supports two roles:
+**ScanMitra** is a state-of-the-art, full-stack diagnostic booking and real-time queue management platform. It bridge the gap between patients and diagnostic centers, providing transparency, reducing wait times, and automating complex hospital-grade workflows.
 
-- `USER`: discover diagnostic centers, book slots, track queue status, manage bookings
-- `CENTER`: manage services, run live queue operations, handle walk-ins, broadcast delays
+---
 
-## Tech Stack
+## 🌟 Key Features
 
-- `Next.js 14` (App Router) + `TypeScript`
-- `Prisma` + `PostgreSQL` (Neon)
-- `NextAuth.js` (Credentials-based auth with role support)
-- `Socket.io` (real-time queue and delay updates)
-- `BullMQ` + `Redis` (background scheduling and queue jobs)
-- `Cloudinary` (file uploads for identity proof and reports)
-- `Tailwind CSS` + Radix/shadcn-style UI primitives
+### 👤 For Patients
+- **Discover Centers**: Search and browse verified diagnostic centers with detailed service listings.
+- **80/20 Smart Booking**: Reserved online slots ensure you always have a place, while walk-in support keeps the center efficient.
+- **Live Queue Tracking**: Watch your position in the queue move in real-time with dynamic ETA updates.
+- **Smart Notifications**: Persistent alerts for delay reports and automated "Missed Slot" re-booking prompts.
+- **Medical Records**: Securely manage your past bookings and diagnostic reports.
 
-## Core Features
+### 🏥 For Diagnostic Centers
+- **Real-time Dashboard**: A powerful "Air Traffic Control" style dashboard to manage live patients.
+- **Queue State Machine**: Sophisticated transitions (Call Next, In-Progress, Skip, Complete) with automated token handling.
+- **Walk-in Support**: Seamlessly add on-site patients into the 20% reserved walk-in slots with overflow logic.
+- **Delay Broadcasting**: Instantly notify all waiting patients of any operational delays via WebSockets.
+- **Automated Scheduling**: Missed slots are automatically detected and marked after 30 minutes.
 
-- Role-based onboarding and dashboards (`USER` / `CENTER`)
-- Center profile setup and diagnostic service management
-- Slot-based booking with token generation
-- Real-time queue tracking (center room + booking room socket events)
-- Queue actions: call next, complete, skip/no-show, delay broadcast
-- Walk-in patient support
-- Uploads via Cloudinary (identity proof + reports)
-- Form validation with Zod and stricter email/password constraints
+---
 
-## Performance Optimizations Included
+## 🚀 Tech Stack
 
-- Prisma query indexing and selective field fetching (`select`)
-- Paginated list endpoints (`skip` / `take`)
-- Parallelized independent async work with `Promise.all`
-- Redis caching for center list, center detail, and slot availability
-- Cache invalidation on write paths (center/service/booking updates)
-- Room-based socket emits (`io.to(room).emit`) instead of global broadcasts
-- Optimistic UI for center queue actions
-- Lazy loading for heavy center components
-- API cache headers (`Cache-Control`) tuned by endpoint type
+- **Framework**: [Next.js 14](https://nextjs.org/) (App Router & Server Actions)
+- **Runtime**: Node.js with a custom `server.ts` for native WebSocket support.
+- **Real-time**: [Socket.io](https://socket.io/) for bi-directional event streaming.
+- **Database**: [Prisma](https://www.prisma.io/) + [PostgreSQL](https://neon.tech/) (Neon).
+- **Background Jobs**: [BullMQ](https://docs.bullmq.io/) + [Upstash Redis](https://upstash.com/) for distributed task scheduling.
+- **Authentication**: [NextAuth.js](https://next-auth.js.org/) with multi-role RBAC.
+- **Storage**: [Cloudinary](https://cloudinary.com/) for medical document handling.
+- **Styling**: Tailwind CSS with Premium Glassmorphism UI.
 
-## Project Structure (High Level)
+---
 
-- `app/` - routes, pages, API handlers
-- `app/api/` - REST-style API routes
-- `lib/` - auth, prisma, queue, socket, scheduler, cache utilities
-- `components/` - shared, center, and user UI components
-- `prisma/` - schema and database model definitions
-- `public/` - static assets (logos/images)
+## 🛠️ Installation & Setup
 
-## Environment Variables
+### 1. Prerequisites
+- Node.js 18+
+- A Redis instance (Upstash recommended)
+- A PostgreSQL database (Neon recommended)
 
-Copy `.env.example` to `.env` and fill values:
-
+### 2. Environment Variables
+Create a `.env` file in the root directory:
 ```env
-DATABASE_URL=
-NEXTAUTH_SECRET=
-NEXTAUTH_URL=http://localhost:3000
+DATABASE_URL="postgresql://..."
+NEXTAUTH_SECRET="your_secret"
+NEXTAUTH_URL="http://localhost:3000"
 
-# BullMQ needs TCP Redis URL
-REDIS_URL=
-UPSTASH_REDIS_URL=
-UPSTASH_REDIS_BULLMQ_URL=
+# Redis (BullMQ + Caching)
+UPSTASH_REDIS_URL="rediss://..."
+UPSTASH_REDIS_REST_URL="https://..."
+UPSTASH_REDIS_REST_TOKEN="..."
 
-# Upstash REST (used for app-level caching)
-UPSTASH_REDIS_REST_URL=
-UPSTASH_REDIS_REST_TOKEN=
-
-CLOUDINARY_CLOUD_NAME=
-CLOUDINARY_API_KEY=
-CLOUDINARY_API_SECRET=
+# Cloudinary
+CLOUDINARY_CLOUD_NAME="..."
+CLOUDINARY_API_KEY="..."
+CLOUDINARY_API_SECRET="..."
 ```
 
-## Local Development
-
-Install dependencies:
-
+### 3. Setup Commands
 ```bash
+# Install dependencies
 npm install
-```
 
-Sync database schema:
+# Generate Prisma Client
+npx prisma generate
 
-```bash
-npm run db:push
-```
+# Push Schema to DB
+npx prisma db push
 
-Run development server (custom server for Socket.io support):
-
-```bash
+# Start Development Server
 npm run dev
 ```
 
-Open `http://localhost:3000`.
+---
 
-## Scripts
+## 📦 Deployment
 
-- `npm run dev` - start custom dev server (`tsx server.ts`)
-- `npm run dev:next` - start Next.js dev server directly
-- `npm run build` - production build
-- `npm run start` - start production server
-- `npm run lint` - run ESLint
-- `npm run db:push` - push Prisma schema to DB
-- `npm run db:generate` - generate Prisma client
-- `npm run db:studio` - open Prisma Studio
+### Recommended: Railway.app / Zeabur
+ScanMitra requires a **persistent Node.js process** for Socket.io to function correctly. Standard serverless platforms (like Vercel) are not recommended.
 
-## Notes
+1. Connect your GitHub repo to Railway.
+2. Ensure the `start` script is set to: `NODE_ENV=production tsx server.ts`.
+3. Add your environment variables in the Railway dashboard.
 
-- Keep Redis configured for full real-time scheduling + caching performance.
-- If Prisma client generation fails on Windows due to file lock, stop running dev server and re-run `npm run db:generate`.
+---
+
+## 📜 Documentation
+Detailed technical documentation, including API routes and architecture, can be found in [DOCUMENTATION.md](./DOCUMENTATION.md).
+
+---
+
+## ⚖️ License
+This project is licensed under the MIT License.

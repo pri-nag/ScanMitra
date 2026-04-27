@@ -7,6 +7,8 @@ import { centerProfileSchema } from "@/lib/validations";
 import { cacheDel, cacheGet, cacheSet } from "@/lib/redis-cache";
 import { jsonNoStore, jsonPublicCache } from "@/lib/http-cache";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/centers - List all centers with search/filter
 export async function GET(req: NextRequest) {
   try {

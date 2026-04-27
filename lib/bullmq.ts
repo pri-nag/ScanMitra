@@ -29,6 +29,7 @@ function queueOrNull(name: string) {
 export const reminderQueue = queueOrNull("reminderQueue");
 export const slotTimeQueue = queueOrNull("slotTimeQueue");
 export const noShowQueue = queueOrNull("noShowQueue");
+export const missedSlotQueue = queueOrNull("missedSlotQueue");
 
 export function createWorker(
   queueName: string,
