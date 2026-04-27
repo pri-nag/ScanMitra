@@ -91,7 +91,7 @@ export async function applyDelay(
   await prisma.queueEntry.updateMany({
     where: {
       centerId,
-      status: { in: ["IN_QUEUE", "CONFIRMED"] },
+      status: { in: ["IN_QUEUE", "CONFIRMED", "IN_PROGRESS"] },
     },
     data: {
       delayMins: { increment: delayMins },

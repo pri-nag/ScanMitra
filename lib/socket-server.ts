@@ -35,4 +35,12 @@ export function emitQueueUpdate(centerId: string, payload: unknown) {
 
 export function emitDelay(centerId: string, payload: unknown) {
   io?.to(`center:${centerId}`).emit("delay_broadcast", payload);
+  const updatedETA = (payload as { updatedETA?: Array<{ bookingId?: string }> }).updatedETA;
+  if (Array.isArray(updatedETA)) {
+    for (const entry of updatedETA) {
+      if (entry.bookingId) {
+        io?.to(`booking:${entry.bookingId}`).emit("delay_broadcast", payload);
+      }
+    }
+  }
 }

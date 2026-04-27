@@ -22,7 +22,14 @@ export const optionalPhoneSchema = z
   .string()
   .regex(/^[6-9]\d{9}$/, "Enter a valid Indian mobile number")
   .optional()
-  .or(z.literal(""));
+  .or(z.literal(""))
+  .or(z.null())
+  .transform((value) => value ?? "");
+
+const optionalStringSchema = z.preprocess(
+  (value) => (value === null ? undefined : value),
+  z.string().optional()
+);
 
 export const passwordSchema = z
   .string()
@@ -60,24 +67,47 @@ export const loginSchema = z.object({
 
 export const patientProfileSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  address: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
+  address: optionalStringSchema,
+  city: optionalStringSchema,
+  state: optionalStringSchema,
   mobile: phoneSchema,
-  age: z
-    .number()
-    .min(0, "Age must be at least 0")
-    .max(120, "Age must be at most 120")
-    .optional()
-    .nullable(),
+  age: z.preprocess(
+    (value) => {
+      if (value === "" || value === null || value === undefined) return undefined;
+      if (typeof value === "number" && Number.isNaN(value)) return undefined;
+      if (typeof value === "string") {
+        const parsed = Number(value);
+        return Number.isNaN(parsed) ? undefined : parsed;
+      }
+      return value;
+    },
+    z
+      .number()
+      .min(0, "Age must be at least 0")
+      .max(120, "Age must be at most 120")
+      .optional()
+      .nullable()
+  ),
   sex: z.enum(["Male", "Female", "Others"]).optional(),
-  dob: z.string().optional(),
+  dob: z
+    .string()
+    .optional()
+    .refine((value) => {
+      if (!value) return true;
+      const dobDate = new Date(`${value}T00:00:00`);
+      if (Number.isNaN(dobDate.getTime())) return false;
+      const today = new Date();
+      const todayLocal = new Date(today.getTime() - today.getTimezoneOffset() * 60000)
+        .toISOString()
+        .slice(0, 10);
+      return value <= todayLocal;
+    }, "Date of birth cannot be in the future"),
   maritalStatus: z
     .enum(["Married", "Unmarried", "Not wanna disclose"])
     .optional(),
   emergencyContact: optionalPhoneSchema,
-  medicalHistory: z.string().optional(),
-  bloodGroup: z.string().optional(),
+  medicalHistory: optionalStringSchema,
+  bloodGroup: optionalStringSchema,
 });
 
 // ===== CENTER PROFILE SCHEMA =====
@@ -95,7 +125,12 @@ export const centerProfileSchema = z.object({
   availableScans: z.array(z.string()).min(1, "Select at least one scan type"),
   machineBrand: z.string().optional(),
   machineModel: z.string().optional(),
-  machineYear: z.number().optional().nullable(),
+  machineYear: z
+    .number()
+    .min(1900, "Machine year must be valid")
+    .max(new Date().getFullYear(), "Machine year cannot be in the future")
+    .optional()
+    .nullable(),
   openingTime: timeSchema,
   closingTime: timeSchema,
   dailyPatientCapacity: z.number().min(1).optional().nullable(),

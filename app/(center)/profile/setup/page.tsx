@@ -14,6 +14,7 @@ import toast from "react-hot-toast";
 export default function CenterProfileSetupPage() {
   const router = useRouter();
   const { status } = useSession();
+  const currentYear = new Date().getFullYear();
   const [loading, setLoading] = useState(false);
   const [uploadingProof, setUploadingProof] = useState(false);
   const [existingProfile, setExistingProfile] = useState(false);
@@ -93,18 +94,71 @@ export default function CenterProfileSetupPage() {
     if (!file) return;
     setUploadingProof(true);
     try {
+      const signRes = await axios.post("/api/uploads/cloudinary/sign", {
+        folder: "scanmitra/center-proofs",
+      });
+      const { signature, timestamp, folder, apiKey, cloudName } = signRes.data as {
+        signature: string;
+        timestamp: number;
+        folder: string;
+        apiKey: string;
+        cloudName: string;
+      };
+
       const form = new FormData();
       form.append("file", file);
-      form.append("folder", "scanmitra/center-proofs");
-      const res = await axios.post("/api/uploads/cloudinary", form, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      const uploadedUrl = String(res.data.secure_url || "");
+      form.append("api_key", apiKey);
+      form.append("timestamp", String(timestamp));
+      form.append("signature", signature);
+      form.append("folder", folder);
+
+      let uploadedUrl = "";
+      const tryDirectUpload = async () => {
+        const uploadRes = await axios.post(
+          `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`,
+          form,
+          { timeout: 30000 }
+        );
+        return String(uploadRes.data.secure_url || "");
+      };
+      const tryFallbackUpload = async () => {
+        const fallbackForm = new FormData();
+        fallbackForm.append("file", file);
+        fallbackForm.append("folder", "scanmitra/center-proofs");
+        const fallbackRes = await axios.post("/api/uploads/cloudinary", fallbackForm, {
+          headers: { "Content-Type": "multipart/form-data" },
+          timeout: 30000,
+        });
+        return String(fallbackRes.data.secure_url || "");
+      };
+
+      for (let attempt = 1; attempt <= 2 && !uploadedUrl; attempt++) {
+        try {
+          uploadedUrl = await tryDirectUpload();
+        } catch {
+          try {
+            uploadedUrl = await tryFallbackUpload();
+          } catch {
+            if (attempt === 2) throw new Error("Upload failed after multiple attempts");
+          }
+        }
+      }
+
+      if (!uploadedUrl) {
+        throw new Error("Upload did not return a file URL");
+      }
       setIdentityProofUrl(uploadedUrl);
       setValue("identityProofUrl", uploadedUrl, { shouldValidate: true });
       toast.success("Identity proof uploaded");
-    } catch {
-      toast.error("Upload failed");
+    } catch (error: unknown) {
+      const message =
+        axios.isAxiosError(error) &&
+        (error.response?.data?.error || error.response?.data?.message)
+          ? String(error.response?.data?.error || error.response?.data?.message)
+          : error instanceof Error
+            ? error.message
+          : "Upload failed";
+      toast.error(message);
     } finally {
       setUploadingProof(false);
       event.target.value = "";
@@ -296,6 +350,8 @@ export default function CenterProfileSetupPage() {
                   {...register("machineYear", { valueAsNumber: true })}
                   type="number"
                   placeholder="2023"
+                  min={1900}
+                  max={currentYear}
                   className="w-full px-4 py-3 bg-secondary/50 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                 />
               </div>

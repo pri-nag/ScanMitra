@@ -39,7 +39,7 @@ export default function CenterDashboardPage() {
     };
   };
 
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const [center, setCenter] = useState<Center | null>(null);
   const [queue, setQueue] = useState<QueueEntry[]>([]);
@@ -95,13 +95,18 @@ export default function CenterDashboardPage() {
 
   useEffect(() => {
     if (status === "authenticated") {
+      if (session?.user?.role !== "CENTER") {
+        toast.error("Please log in as a center account.");
+        router.push("/login");
+        return;
+      }
       setLoading(true);
       fetchCenter().then((c) => {
         if (c) fetchQueue(c.id);
         setLoading(false);
       });
     }
-  }, [status, fetchCenter, fetchQueue]);
+  }, [status, session?.user?.role, fetchCenter, fetchQueue, router]);
 
   // Auto-refresh every 20 seconds (socket handles realtime updates)
   useEffect(() => {
@@ -182,8 +187,15 @@ export default function CenterDashboardPage() {
       toast.success(`Delay of ${delayMins} min broadcasted`);
       setShowDelay(false);
       if (center) fetchQueue(center.id);
-    } catch {
-      toast.error("Failed to broadcast delay");
+    } catch (error: unknown) {
+      const message =
+        axios.isAxiosError(error) && error.response?.data?.error
+          ? String(error.response.data.error)
+          : "Failed to broadcast delay";
+      toast.error(message);
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        router.push("/login");
+      }
     }
   };
 

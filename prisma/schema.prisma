@@ -7,36 +7,20 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  USER
-  CENTER
-}
-
-enum BookingStatus {
-  PENDING
-  CONFIRMED
-  IN_QUEUE
-  IN_PROGRESS
-  DONE
-  NO_SHOW
-  CANCELLED
-}
-
 model User {
   id             String    @id @default(cuid())
   email          String    @unique
   password       String
   role           Role
   createdAt      DateTime  @default(now())
-  patientProfile Patient?
-  centerProfile  Center?
   bookings       Booking[]
+  centerProfile  Center?
+  patientProfile Patient?
 }
 
 model Patient {
   id               String    @id @default(cuid())
   userId           String    @unique
-  user             User      @relation(fields: [userId], references: [id])
   name             String
   address          String?
   city             String?
@@ -49,12 +33,12 @@ model Patient {
   emergencyContact String?
   medicalHistory   String?
   bloodGroup       String?
+  user             User      @relation(fields: [userId], references: [id])
 }
 
 model Center {
   id                   String       @id @default(cuid())
   userId               String       @unique
-  user                 User         @relation(fields: [userId], references: [id])
   centerName           String
   address              String
   phone1               String
@@ -72,20 +56,21 @@ model Center {
   closingTime          String
   dailyPatientCapacity Int?
   emergencySupport     Boolean      @default(false)
-  services             Service[]
   bookings             Booking[]
+  user                 User         @relation(fields: [userId], references: [id])
   queueEntries         QueueEntry[]
+  services             Service[]
 }
 
 model Service {
   id       String    @id @default(cuid())
   centerId String
-  center   Center    @relation(fields: [centerId], references: [id])
   name     String
   duration Int
   price    Float
   status   Boolean   @default(true)
   bookings Booking[]
+  center   Center    @relation(fields: [centerId], references: [id])
 
   @@index([centerId, status])
 }
@@ -93,11 +78,8 @@ model Service {
 model Booking {
   id             String        @id @default(cuid())
   userId         String
-  user           User          @relation(fields: [userId], references: [id])
   centerId       String
-  center         Center        @relation(fields: [centerId], references: [id])
   serviceId      String
-  service        Service       @relation(fields: [serviceId], references: [id])
   patientName    String
   patientPhone   String
   slotTime       DateTime
@@ -105,8 +87,11 @@ model Booking {
   status         BookingStatus @default(PENDING)
   additionalInfo String?
   review         String?
-  queueEntry     QueueEntry?
   createdAt      DateTime      @default(now())
+  center         Center        @relation(fields: [centerId], references: [id])
+  service        Service       @relation(fields: [serviceId], references: [id])
+  user           User          @relation(fields: [userId], references: [id])
+  queueEntry     QueueEntry?
 
   @@index([userId, slotTime])
   @@index([centerId, slotTime])
@@ -117,9 +102,7 @@ model Booking {
 model QueueEntry {
   id        String        @id @default(cuid())
   bookingId String        @unique
-  booking   Booking       @relation(fields: [bookingId], references: [id])
   centerId  String
-  center    Center        @relation(fields: [centerId], references: [id])
   queueNo   Int
   status    BookingStatus
   delayMins Int           @default(0)
@@ -127,7 +110,24 @@ model QueueEntry {
   calledAt  DateTime?
   doneAt    DateTime?
   createdAt DateTime      @default(now())
+  booking   Booking       @relation(fields: [bookingId], references: [id])
+  center    Center        @relation(fields: [centerId], references: [id])
 
   @@index([centerId, status, queueNo])
   @@index([centerId, createdAt])
+}
+
+enum Role {
+  USER
+  CENTER
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  IN_QUEUE
+  IN_PROGRESS
+  DONE
+  NO_SHOW
+  CANCELLED
 }

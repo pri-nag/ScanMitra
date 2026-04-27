@@ -3,6 +3,34 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import prisma from "./prisma";
 
+function isDatabaseUnavailableError(error: unknown): boolean {
+  const code = (error as { code?: string })?.code;
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "";
+
+  return code === "P1001" || message.includes("Can't reach database server");
+}
+
+async function retryDbOperation<T>(operation: () => Promise<T>, maxAttempts = 3): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await operation();
+    } catch (error: unknown) {
+      lastError = error;
+      if (!isDatabaseUnavailableError(error) || attempt === maxAttempts) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 300 * attempt));
+    }
+  }
+  throw lastError;
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -18,9 +46,11 @@ export const authOptions: NextAuthOptions = {
             throw new Error("Missing credentials");
           }
 
-          const user = await prisma.user.findUnique({
-            where: { email: credentials.email },
-          });
+          const user = await retryDbOperation(() =>
+            prisma.user.findUnique({
+              where: { email: credentials.email },
+            })
+          );
 
           if (!user || user.role !== credentials.role) {
             throw new Error("Invalid email, password, or role");
@@ -48,6 +78,9 @@ export const authOptions: NextAuthOptions = {
             ) {
               throw error;
             }
+          }
+          if (isDatabaseUnavailableError(error)) {
+            throw new Error("Database connection failed. Check network/VPN and try again.");
           }
           throw new Error("Login service temporarily unavailable. Please try again.");
         }
